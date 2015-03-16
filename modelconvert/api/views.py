@@ -108,7 +108,7 @@ def list_bundles():
 
     resp = jsonify(data)
     return resp
-    
+
     # only used for put/post
     # if request.json:
     #     pass
@@ -134,7 +134,7 @@ def add_bucket():
 
     You can then stream binary content in the body.
 
-    Note that you have to specify a filename even if you stream the 
+    Note that you have to specify a filename even if you stream the
     file directly from an application. This is required in case you
     want to upload other assets to the bucket which are name dependent
     (for exmaple when using the metadata template).
@@ -142,7 +142,7 @@ def add_bucket():
     After successful upload, a bucket ID among with a status message and
     the filename under which the data is stored within he bucket.
     """
-    
+
     # create a UUID like hash for temporary file storage (bucket id)
     hash = uuid.uuid4().hex
 
@@ -162,7 +162,7 @@ def add_bucket():
         return resp
 
     filename = request.headers['X-Filename']
-        
+
     if security.is_allowed_file(filename):
         filename = werkzeug.secure_filename(filename)
         ofilename = filename
@@ -200,7 +200,7 @@ def add_to_bucket(bucket_id=None):
     """
     Not implemented yet.
 
-    Additionally with the use of this id it is possible to upload 
+    Additionally with the use of this id it is possible to upload
     multiple files to the same bucket sequentially. e.g.::
 
         POST /buckets/id123
@@ -212,7 +212,7 @@ def add_to_bucket(bucket_id=None):
     resp = jsonify(message="This functionality is not implemented yet. Please upload a ZIP file with all files you need.")
     resp.status_code = 501 # not impl.
     return resp
-    
+
 
 
 @api.route('/v1/jobs', methods=['POST'])
@@ -223,13 +223,13 @@ def add_job():
     resources (see ..)::
 
         {
-            "payload": "bucket://1234afdsafdsfdsa232", 
+            "payload": "bucket://1234afdsafdsfdsa232",
 
-            // for the moment you also need to specify the filename you want 
+            // for the moment you also need to specify the filename you want
             "payload_filename: "herkules.ply"
-            
+
             // alternatively, to load from a URI use this instead:
-            "payload": "http://someplace.zip", 
+            "payload": "http://someplace.zip",
 
             // all the following are optional:
             "email_to": "some@address.com",
@@ -276,21 +276,21 @@ def add_job():
 
         {
             // clear text informational message, HTTP status code serves as numeric indicator
-            "message": "Job accepted with ID 123", 
+            "message": "Job accepted with ID 123",
 
             // the task ID the job is running on
             "task_id": "123",
 
             // poll URI for checking less frequently for results
-            "job_url":   "full.host/v1/jobs/123",       
+            "job_url":   "full.host/v1/jobs/123",
 
             // URI for status updates through push protocl. This implements
             // the W3C EventSource specification. So your client needs to
             // support this in order to reciece push updates.
-            "progress_url": "full.host/v1/stream/123",  
+            "progress_url": "full.host/v1/stream/123",
         }
     """
-    
+
     options = dict() # options passted to task
     data = request.json
 
@@ -334,7 +334,7 @@ def add_job():
                 resp.status_code = 416 # request range unsatifieable
                 return resp
             else:
-                
+
                 # create a UUID like hash for temporary file storage
                 hash = uuid.uuid4().hex
 
@@ -358,22 +358,22 @@ def add_job():
             resp = jsonify(message="Please specify the payload_filename attribute in your request.")
             resp.status_code = 400 # bad
             return resp
-			
+
         current_app.logger.debug("Using Bucket ID: {0} with entry point filename".format(url.netloc, filename))
         options.update(hash=url.netloc)
-		upload_directory = os.path.join(current_app.config['UPLOAD_PATH'], url.netloc)
-		filename = os.path.join(upload_directory, data['payload_filename'])
+        upload_directory = os.path.join(current_app.config['UPLOAD_PATH'], url.netloc)
+        filename = os.path.join(upload_directory, data['payload_filename'])
     else:
         current_app.logger.error("Unknown payload resource identifier")
         resp = jsonify(message="No recognizable payload URI provided. Please use bucket:// or http://")
         resp.status_code = 400 # bad resquest
         return resp
 
-    
+
     if 'email_to' in data:
-        # we need to add at least captcha system to protect from 
+        # we need to add at least captcha system to protect from
         # spammers, for now setting the sender env var enables the
-        # email system, use with care behind pw protected 
+        # email system, use with care behind pw protected
         if current_app.config['DEFAULT_MAIL_SENDER'] == 'noreply@localhost':
             options.update(email_to=None)
         else:
@@ -387,10 +387,10 @@ def add_job():
     else:
         options.update(template=data['template'])
 
-  
+
 
     retval = tasks.convert_model.apply_async((filename, options))
-    
+
     resp = jsonify(
         message="Task added sucessfully.",
         task_id=retval.task_id,
@@ -404,18 +404,18 @@ def add_job():
 
 @api.route('/v1/jobs/<task_id>', methods=['GET'])
 def job_status(task_id):
-    """ 
+    """
     Check status of a specific job.
     Note that currently this maps to a Celery Task ID. Later it will
     be a seperate entity which can have many associated celery tasks.
-    
+
     Note that Celery returns PENDING if the Task ID is non existant.
     This is an optimization and could be recitified like so:
     http://stackoverflow.com/questions/9824172/find-out-whether-celery-task-exists
 
     When results are ready we provide json data response with::
-    
-        {   
+
+        {
             "message": "Conversion ready.",
             "download_url":"http:/domain.tld/somplace/download.zip",
             "preview_url": "htt://domain.tld/someplace/index.html",
